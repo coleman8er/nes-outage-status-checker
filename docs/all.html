@@ -530,7 +530,9 @@
 
         function checkForChanges(events) {
             const changes = [];
+            const currentIds = new Set(events.map(e => e.id));
 
+            // Check for status changes
             events.forEach(event => {
                 const prev = previousEvents[event.id];
                 if (prev && prev.status !== event.status) {
@@ -540,6 +542,13 @@
                         oldStatus: prev.status,
                         newStatus: event.status
                     });
+                }
+            });
+
+            // Check for resolved events (previously existed but now gone)
+            Object.keys(previousEvents).forEach(id => {
+                if (!currentIds.has(parseInt(id))) {
+                    sendNotification('NES Outage Update', `Event ${id}: No longer found - may be resolved!`);
                 }
             });
 

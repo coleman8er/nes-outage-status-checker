@@ -10,7 +10,7 @@ All notable changes to the NES Outage Status Checker will be documented in this 
 - **Multi-monitor support** - Track up to 4 outage events simultaneously with individual status cards
 - **Custom labels** - Name each monitor (e.g., "Home", "Office", "Mom's house") for easy identification
 - **Shareable URLs** - Monitor configurations saved in URL (`?monitors=123:Home,456:Office`) for easy sharing
-- **Browser notifications** - Get notified when outage status changes (requires permission)
+- **Browser notifications** - Get notified when outage status changes or event is resolved (requires permission)
 - **Sound alerts** - Optional audio chime when status changes
 - **Auto-refresh** - Configurable refresh intervals (1, 5, 10, 15, 30, or 60 minutes)
 - **Compact view** - Toggle to show only status badges for a condensed overview
@@ -29,7 +29,7 @@ All notable changes to the NES Outage Status Checker will be documented in this 
 - **All outages dashboard** - View every active NES outage event in one place
 - **Filter by affected** - Filter events by minimum affected people (All, 2+, 10+, 50+, 100+) - defaults to 10+
 - **Summary statistics** - Total events, unassigned count, assigned count, and total affected people
-- **Browser notifications** - Get notified when any event's status changes
+- **Browser notifications** - Get notified when any event's status changes or is resolved
 - **Sound alerts** - Optional audio chime when status changes
 - **Auto-refresh** - Configurable refresh intervals (10, 20, 30, 40, 50, or 60 minutes)
 - **Compact view** - Toggle to show condensed event cards

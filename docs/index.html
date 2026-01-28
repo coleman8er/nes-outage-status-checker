@@ -1111,7 +1111,13 @@
                     if (event) {
                         showResult(id, event);
                     } else {
-                        showError(id, `Event ID ${monitor.eventId} not found`);
+                        // Event not found - may be resolved!
+                        const label = document.getElementById(`label-${id}`)?.value;
+                        const displayName = label || `Event ${monitor.eventId}`;
+                        if (monitor.previousStatus !== null) {
+                            sendNotification('NES Outage Update', `${displayName}: Event no longer found - may be resolved!`);
+                        }
+                        showError(id, `Event ID ${monitor.eventId} not found - may be resolved!`);
                     }
                 });
 
