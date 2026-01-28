@@ -27,6 +27,7 @@ All notable changes to the NES Outage Status Checker will be documented in this 
 
 #### Web App - All Outages Page
 - **All outages dashboard** - View every active NES outage event in one place
+- **Filter by affected** - Filter events by minimum affected people (All, 2+, 10+, 50+, 100+) - defaults to 10+
 - **Summary statistics** - Total events, unassigned count, assigned count, and total affected people
 - **Browser notifications** - Get notified when any event's status changes
 - **Sound alerts** - Optional audio chime when status changes

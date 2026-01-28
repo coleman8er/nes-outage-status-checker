@@ -348,6 +348,13 @@
                 <span class="summary-stat">Affected: <strong id="totalAffected">0</strong></span>
             </div>
             <div class="summary-actions">
+                <select id="filterAffected" onchange="fetchAllEvents()" title="Filter by minimum affected">
+                    <option value="0">All</option>
+                    <option value="2">2+ affected</option>
+                    <option value="10" selected>10+ affected</option>
+                    <option value="50">50+ affected</option>
+                    <option value="100">100+ affected</option>
+                </select>
                 <button class="icon-btn" id="compactBtn" onclick="toggleCompactView()" title="Toggle compact view">Compact</button>
                 <button class="icon-btn active" id="sortBtn" onclick="toggleSort()" title="Sort assigned first">Sort</button>
             </div>
@@ -577,6 +584,12 @@
                 if (!response.ok) throw new Error('Failed to fetch outage data');
 
                 let events = await response.json();
+
+                // Filter by minimum affected
+                const minAffected = parseInt(document.getElementById('filterAffected').value) || 0;
+                if (minAffected > 0) {
+                    events = events.filter(e => e.numPeople >= minAffected);
+                }
 
                 // Check for status changes before updating
                 if (Object.keys(previousEvents).length > 0) {
