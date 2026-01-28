@@ -33,70 +33,119 @@
             text-align: center;
         }
 
-        .input-section {
+        .monitors {
             display: flex;
-            gap: 10px;
-            margin-bottom: 24px;
+            flex-direction: column;
+            gap: 16px;
         }
 
-        input {
+        .monitor {
+            border: 2px solid #3d3d5c;
+            border-radius: 12px;
+            padding: 20px;
+            background: #16213e;
+            position: relative;
+        }
+
+        .monitor-header {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .monitor-header input {
             flex: 1;
-            padding: 12px 16px;
+            padding: 10px 14px;
             border: 2px solid #3d3d5c;
             border-radius: 8px;
-            background: #16213e;
+            background: #1a1a2e;
             color: #e0e0e0;
             font-size: 1rem;
         }
 
-        input:focus {
+        .monitor-header input:focus {
             outline: none;
             border-color: #667eea;
         }
 
-        button {
-            padding: 12px 24px;
+        .monitor-header button {
+            padding: 10px 18px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.9rem;
             font-weight: 600;
             transition: opacity 0.2s;
         }
 
-        button:hover {
+        .monitor-header button:hover {
             opacity: 0.9;
         }
 
-        button:disabled {
+        .monitor-header button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
-        .status-box {
-            border: 2px solid #3d3d5c;
+        .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            background: transparent;
+            border: 1px solid #3d3d5c;
+            border-radius: 4px;
+            color: #666;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .remove-btn:hover {
+            background: #ff6b6b33;
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .add-monitor-btn {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            border: 2px dashed #3d3d5c;
             border-radius: 12px;
-            padding: 24px;
-            background: #16213e;
+            color: #666;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .add-monitor-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
         }
 
         .loading {
             text-align: center;
-            padding: 40px;
+            padding: 20px;
             color: #a0a0a0;
         }
 
         .spinner {
             display: inline-block;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             border: 3px solid #3d3d5c;
             border-top-color: #667eea;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-right: 10px;
+            margin-right: 8px;
             vertical-align: middle;
         }
 
@@ -107,11 +156,12 @@
         .error {
             color: #ff6b6b;
             text-align: center;
-            padding: 20px;
+            padding: 16px;
         }
 
         .field {
-            margin-bottom: 12px;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
         }
 
         .label {
@@ -125,19 +175,19 @@
         }
 
         .status {
-            margin-top: 20px;
-            padding-top: 20px;
+            margin-top: 16px;
+            padding-top: 16px;
             border-top: 1px solid #3d3d5c;
             text-align: center;
         }
 
         .status-badge {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
-            padding: 8px 16px;
+            padding: 6px 14px;
             border-radius: 6px;
             display: inline-block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .status-unassigned {
@@ -158,7 +208,17 @@
 
         .status-message {
             color: #a0a0a0;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+        }
+
+        .instructions {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        .instructions a {
+            color: #667eea;
         }
 
         .meta {
@@ -170,6 +230,8 @@
             align-items: center;
             font-size: 0.85rem;
             color: #666;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         .options {
@@ -218,14 +280,12 @@
             display: none;
         }
 
-        .instructions {
-            text-align: center;
-            color: #666;
-            padding: 40px 20px;
+        .result {
+            display: none;
         }
 
-        .instructions a {
-            color: #667eea;
+        .result.visible {
+            display: block;
         }
     </style>
 </head>
@@ -233,59 +293,9 @@
     <div class="container">
         <h1>NES Outage Status Checker</h1>
 
-        <div class="input-section">
-            <input type="number" id="eventId" placeholder="Enter Event ID">
-            <button id="checkBtn" onclick="checkStatus()">Check</button>
-        </div>
+        <div class="monitors" id="monitors"></div>
 
-        <div class="status-box">
-            <div id="instructions" class="instructions">
-                Enter your outage Event ID to check status.<br><br>
-                Find it on the <a href="https://www.nespower.com/outages/" target="_blank">NES Outage Map</a>.
-            </div>
-
-            <div id="loading" class="loading hidden">
-                <span class="spinner"></span> Fetching outage data...
-            </div>
-
-            <div id="error" class="error hidden"></div>
-
-            <div id="result" class="hidden">
-                <div class="field">
-                    <span class="label">Event ID:</span>
-                    <span class="value" id="resEventId"></span>
-                </div>
-                <div class="field">
-                    <span class="label">Identifier:</span>
-                    <span class="value" id="resIdentifier"></span>
-                </div>
-                <div class="field">
-                    <span class="label">Title:</span>
-                    <span class="value" id="resTitle"></span>
-                </div>
-                <div class="field">
-                    <span class="label">Affected:</span>
-                    <span class="value" id="resAffected"></span>
-                </div>
-                <div class="field" id="causeField">
-                    <span class="label">Cause:</span>
-                    <span class="value" id="resCause"></span>
-                </div>
-                <div class="field">
-                    <span class="label">Started:</span>
-                    <span class="value" id="resStarted"></span>
-                </div>
-                <div class="field">
-                    <span class="label">Last Updated:</span>
-                    <span class="value" id="resUpdated"></span>
-                </div>
-
-                <div class="status">
-                    <div id="statusBadge" class="status-badge"></div>
-                    <div id="statusMessage" class="status-message"></div>
-                </div>
-            </div>
-        </div>
+        <button class="add-monitor-btn" onclick="addMonitor()">+ Add Monitor</button>
 
         <div class="meta">
             <span id="lastChecked"></span>
@@ -312,25 +322,123 @@
     <script>
         const API_URL = 'https://utilisocial.io/datacapable/v2/p/NES/map/events';
         let refreshTimer = null;
-        let previousStatus = null;
         let notificationsEnabled = false;
+        let monitorId = 0;
+        let monitors = {};
 
-        // Load event ID from URL on page load
-        (function init() {
-            const params = new URLSearchParams(window.location.search);
-            const eventId = params.get('event');
+        function createMonitorHTML(id) {
+            return `
+                <div class="monitor" id="monitor-${id}">
+                    <button class="remove-btn" onclick="removeMonitor(${id})">×</button>
+                    <div class="monitor-header">
+                        <input type="number" id="eventId-${id}" placeholder="Enter Event ID" onkeypress="handleKeypress(event, ${id})">
+                        <button onclick="checkSingleMonitor(${id})">Check</button>
+                    </div>
+                    <div class="instructions" id="instructions-${id}">
+                        Find your Event ID on the <a href="https://www.nespower.com/outages/" target="_blank">NES Outage Map</a>
+                    </div>
+                    <div class="loading hidden" id="loading-${id}">
+                        <span class="spinner"></span> Fetching...
+                    </div>
+                    <div class="error hidden" id="error-${id}"></div>
+                    <div class="result" id="result-${id}">
+                        <div class="field">
+                            <span class="label">Event ID:</span>
+                            <span class="value" id="resEventId-${id}"></span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Identifier:</span>
+                            <span class="value" id="resIdentifier-${id}"></span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Title:</span>
+                            <span class="value" id="resTitle-${id}"></span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Affected:</span>
+                            <span class="value" id="resAffected-${id}"></span>
+                        </div>
+                        <div class="field hidden" id="causeField-${id}">
+                            <span class="label">Cause:</span>
+                            <span class="value" id="resCause-${id}"></span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Started:</span>
+                            <span class="value" id="resStarted-${id}"></span>
+                        </div>
+                        <div class="field">
+                            <span class="label">Last Updated:</span>
+                            <span class="value" id="resUpdated-${id}"></span>
+                        </div>
+                        <div class="status">
+                            <div id="statusBadge-${id}" class="status-badge"></div>
+                            <div id="statusMessage-${id}" class="status-message"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        const MAX_MONITORS = 4;
+
+        function addMonitor(eventId = null) {
+            if (Object.keys(monitors).length >= MAX_MONITORS) return null;
+
+            const id = monitorId++;
+            monitors[id] = { eventId: null, previousStatus: null };
+
+            const container = document.getElementById('monitors');
+            container.insertAdjacentHTML('beforeend', createMonitorHTML(id));
+
             if (eventId) {
-                document.getElementById('eventId').value = eventId;
-                checkStatus();
+                document.getElementById(`eventId-${id}`).value = eventId;
+                checkSingleMonitor(id);
             }
-        })();
 
-        document.getElementById('eventId').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') checkStatus();
-        });
+            updateRemoveButtons();
+            updateAddButton();
+            return id;
+        }
 
-        document.getElementById('refreshInterval').addEventListener('change', (e) => {
-            if (document.getElementById('result').classList.contains('hidden') === false) {
+        function updateAddButton() {
+            const btn = document.querySelector('.add-monitor-btn');
+            if (Object.keys(monitors).length >= MAX_MONITORS) {
+                btn.classList.add('hidden');
+            } else {
+                btn.classList.remove('hidden');
+            }
+        }
+
+        function removeMonitor(id) {
+            const el = document.getElementById(`monitor-${id}`);
+            if (el) {
+                el.remove();
+                delete monitors[id];
+                updateURL();
+                updateRemoveButtons();
+                updateAddButton();
+            }
+        }
+
+        function updateRemoveButtons() {
+            const monitorEls = document.querySelectorAll('.monitor');
+            monitorEls.forEach(el => {
+                const btn = el.querySelector('.remove-btn');
+                if (monitorEls.length === 1) {
+                    btn.classList.add('hidden');
+                } else {
+                    btn.classList.remove('hidden');
+                }
+            });
+        }
+
+        function handleKeypress(e, id) {
+            if (e.key === 'Enter') checkSingleMonitor(id);
+        }
+
+        document.getElementById('refreshInterval').addEventListener('change', () => {
+            const hasActiveMonitors = Object.values(monitors).some(m => m.eventId !== null);
+            if (hasActiveMonitors) {
                 startAutoRefresh();
             }
         });
@@ -343,7 +451,7 @@
             stopAutoRefresh();
             const interval = getRefreshInterval();
             if (interval > 0) {
-                refreshTimer = setInterval(checkStatus, interval);
+                refreshTimer = setInterval(refreshAllMonitors, interval);
             }
         }
 
@@ -397,19 +505,30 @@
             }
         }
 
-        async function checkStatus() {
-            const eventId = parseInt(document.getElementById('eventId').value);
+        function updateURL() {
+            const eventIds = Object.values(monitors)
+                .filter(m => m.eventId !== null)
+                .map(m => m.eventId);
+
+            const url = new URL(window.location);
+            if (eventIds.length > 0) {
+                url.searchParams.set('events', eventIds.join(','));
+            } else {
+                url.searchParams.delete('events');
+            }
+            window.history.replaceState({}, '', url);
+        }
+
+        async function checkSingleMonitor(id) {
+            const eventId = parseInt(document.getElementById(`eventId-${id}`).value);
             if (!eventId) {
-                showError('Please enter a valid Event ID');
+                showError(id, 'Please enter a valid Event ID');
                 return;
             }
 
-            showLoading();
-
-            // Update URL with event ID
-            const url = new URL(window.location);
-            url.searchParams.set('event', eventId);
-            window.history.replaceState({}, '', url);
+            monitors[id].eventId = eventId;
+            showLoading(id);
+            updateURL();
 
             try {
                 const response = await fetch(API_URL);
@@ -419,63 +538,88 @@
                 const event = events.find(e => e.id === eventId);
 
                 if (!event) {
-                    showError(`Event ID ${eventId} not found`);
+                    showError(id, `Event ID ${eventId} not found`);
+                    monitors[id].eventId = null;
+                    updateURL();
                     return;
                 }
 
-                showResult(event);
+                showResult(id, event);
 
                 if (getRefreshInterval() > 0) {
                     startAutoRefresh();
                 }
             } catch (err) {
-                showError(err.message);
+                showError(id, err.message);
             }
         }
 
-        function showLoading() {
-            document.getElementById('instructions').classList.add('hidden');
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('error').classList.add('hidden');
-            document.getElementById('result').classList.add('hidden');
-            document.getElementById('checkBtn').disabled = true;
+        async function refreshAllMonitors() {
+            const activeMonitors = Object.entries(monitors).filter(([_, m]) => m.eventId !== null);
+            if (activeMonitors.length === 0) return;
+
+            activeMonitors.forEach(([id]) => showLoading(id));
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('Failed to fetch outage data');
+
+                const events = await response.json();
+
+                activeMonitors.forEach(([id, monitor]) => {
+                    const event = events.find(e => e.id === monitor.eventId);
+                    if (event) {
+                        showResult(id, event);
+                    } else {
+                        showError(id, `Event ID ${monitor.eventId} not found`);
+                    }
+                });
+
+                document.getElementById('lastChecked').textContent = `Last checked: ${new Date().toLocaleTimeString()}`;
+            } catch (err) {
+                activeMonitors.forEach(([id]) => showError(id, err.message));
+            }
         }
 
-        function showError(message) {
-            document.getElementById('instructions').classList.add('hidden');
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('error').classList.remove('hidden');
-            document.getElementById('error').textContent = message;
-            document.getElementById('result').classList.add('hidden');
-            document.getElementById('checkBtn').disabled = false;
-            stopAutoRefresh();
+        function showLoading(id) {
+            document.getElementById(`instructions-${id}`).classList.add('hidden');
+            document.getElementById(`loading-${id}`).classList.remove('hidden');
+            document.getElementById(`error-${id}`).classList.add('hidden');
+            document.getElementById(`result-${id}`).classList.remove('visible');
         }
 
-        function showResult(event) {
-            document.getElementById('instructions').classList.add('hidden');
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('error').classList.add('hidden');
-            document.getElementById('result').classList.remove('hidden');
-            document.getElementById('checkBtn').disabled = false;
+        function showError(id, message) {
+            document.getElementById(`instructions-${id}`).classList.add('hidden');
+            document.getElementById(`loading-${id}`).classList.add('hidden');
+            document.getElementById(`error-${id}`).classList.remove('hidden');
+            document.getElementById(`error-${id}`).textContent = message;
+            document.getElementById(`result-${id}`).classList.remove('visible');
+        }
 
-            document.getElementById('resEventId').textContent = event.id;
-            document.getElementById('resIdentifier').textContent = event.identifier;
-            document.getElementById('resTitle').textContent = event.title;
-            document.getElementById('resAffected').textContent = `${event.numPeople} people`;
+        function showResult(id, event) {
+            document.getElementById(`instructions-${id}`).classList.add('hidden');
+            document.getElementById(`loading-${id}`).classList.add('hidden');
+            document.getElementById(`error-${id}`).classList.add('hidden');
+            document.getElementById(`result-${id}`).classList.add('visible');
 
-            const causeField = document.getElementById('causeField');
+            document.getElementById(`resEventId-${id}`).textContent = event.id;
+            document.getElementById(`resIdentifier-${id}`).textContent = event.identifier;
+            document.getElementById(`resTitle-${id}`).textContent = event.title;
+            document.getElementById(`resAffected-${id}`).textContent = `${event.numPeople} people`;
+
+            const causeField = document.getElementById(`causeField-${id}`);
             if (event.cause) {
                 causeField.classList.remove('hidden');
-                document.getElementById('resCause').textContent = event.cause;
+                document.getElementById(`resCause-${id}`).textContent = event.cause;
             } else {
                 causeField.classList.add('hidden');
             }
 
-            document.getElementById('resStarted').textContent = formatDate(event.startTime);
-            document.getElementById('resUpdated').textContent = formatDate(event.lastUpdatedTime);
+            document.getElementById(`resStarted-${id}`).textContent = formatDate(event.startTime);
+            document.getElementById(`resUpdated-${id}`).textContent = formatDate(event.lastUpdatedTime);
 
-            const badge = document.getElementById('statusBadge');
-            const message = document.getElementById('statusMessage');
+            const badge = document.getElementById(`statusBadge-${id}`);
+            const message = document.getElementById(`statusMessage-${id}`);
 
             if (event.status === 'Unassigned') {
                 badge.className = 'status-badge status-unassigned';
@@ -488,14 +632,15 @@
             }
 
             // Check for status change and notify
-            if (previousStatus !== null && previousStatus !== event.status) {
+            const monitor = monitors[id];
+            if (monitor.previousStatus !== null && monitor.previousStatus !== event.status) {
                 if (event.status !== 'Unassigned') {
-                    sendNotification('NES Outage Update', `Status changed to: ${event.status}. A technician has been assigned!`);
+                    sendNotification('NES Outage Update', `Event ${event.id}: Status changed to ${event.status}. A technician has been assigned!`);
                 } else {
-                    sendNotification('NES Outage Update', `Status changed to: ${event.status}`);
+                    sendNotification('NES Outage Update', `Event ${event.id}: Status changed to ${event.status}`);
                 }
             }
-            previousStatus = event.status;
+            monitor.previousStatus = event.status;
 
             document.getElementById('lastChecked').textContent = `Last checked: ${new Date().toLocaleTimeString()}`;
         }
@@ -510,6 +655,19 @@
                 hour12: true
             });
         }
+
+        // Initialize
+        (function init() {
+            const params = new URLSearchParams(window.location.search);
+            const eventsParam = params.get('events');
+
+            if (eventsParam) {
+                const eventIds = eventsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                eventIds.forEach(eventId => addMonitor(eventId));
+            } else {
+                addMonitor();
+            }
+        })();
     </script>
 </body>
 </html>
