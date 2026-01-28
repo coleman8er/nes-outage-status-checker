@@ -415,7 +415,7 @@
             return `
                 <div class="monitor" id="monitor-${id}">
                     <button class="remove-btn" onclick="removeMonitor(${id})">×</button>
-                    <input type="text" class="monitor-label" id="label-${id}" placeholder="Custom label (e.g., Home, Office, Mom's house)" onchange="saveToStorage()">
+                    <input type="text" class="monitor-label" id="label-${id}" placeholder="Custom label (e.g., Home, Office, Mom's house)" onchange="saveToStorage(); updateURL();">
                     <div class="monitor-header">
                         <input type="number" id="eventId-${id}" placeholder="Enter Event ID" onkeypress="handleKeypress(event, ${id})">
                         <button onclick="checkSingleMonitor(${id})">Check</button>
@@ -597,15 +597,22 @@
         }
 
         function updateURL() {
-            const eventIds = Object.values(monitors)
-                .filter(m => m.eventId !== null)
-                .map(m => m.eventId);
+            const monitorData = Object.entries(monitors)
+                .filter(([_, m]) => m.eventId !== null)
+                .map(([id, m]) => {
+                    const label = document.getElementById(`label-${id}`)?.value || '';
+                    if (label) {
+                        return `${m.eventId}:${encodeURIComponent(label)}`;
+                    }
+                    return `${m.eventId}`;
+                });
 
             const url = new URL(window.location);
-            if (eventIds.length > 0) {
-                url.searchParams.set('events', eventIds.join(','));
+            url.searchParams.delete('events'); // Remove old format
+            if (monitorData.length > 0) {
+                url.searchParams.set('monitors', monitorData.join(','));
             } else {
-                url.searchParams.delete('events');
+                url.searchParams.delete('monitors');
             }
             window.history.replaceState({}, '', url);
         }
@@ -753,10 +760,21 @@
         // Initialize
         (function init() {
             const params = new URLSearchParams(window.location.search);
-            const eventsParam = params.get('events');
+            const monitorsParam = params.get('monitors');
+            const eventsParam = params.get('events'); // Backwards compatibility
 
-            if (eventsParam) {
-                // URL params take priority
+            if (monitorsParam) {
+                // New format: monitors=123:Label,456:Label
+                const monitorEntries = monitorsParam.split(',').map(entry => {
+                    const [idPart, labelPart] = entry.split(':');
+                    return {
+                        eventId: parseInt(idPart.trim()),
+                        label: labelPart ? decodeURIComponent(labelPart) : ''
+                    };
+                }).filter(m => !isNaN(m.eventId));
+                monitorEntries.forEach(m => addMonitor(m.eventId, m.label));
+            } else if (eventsParam) {
+                // Old format: events=123,456
                 const eventIds = eventsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
                 eventIds.forEach(eventId => addMonitor(eventId));
             } else {
