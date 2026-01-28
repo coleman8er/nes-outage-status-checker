@@ -315,6 +315,16 @@
         let previousStatus = null;
         let notificationsEnabled = false;
 
+        // Load event ID from URL on page load
+        (function init() {
+            const params = new URLSearchParams(window.location.search);
+            const eventId = params.get('event');
+            if (eventId) {
+                document.getElementById('eventId').value = eventId;
+                checkStatus();
+            }
+        })();
+
         document.getElementById('eventId').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') checkStatus();
         });
@@ -395,6 +405,11 @@
             }
 
             showLoading();
+
+            // Update URL with event ID
+            const url = new URL(window.location);
+            url.searchParams.set('event', eventId);
+            window.history.replaceState({}, '', url);
 
             try {
                 const response = await fetch(API_URL);
