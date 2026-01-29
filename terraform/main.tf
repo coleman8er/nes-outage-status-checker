@@ -207,3 +207,94 @@ resource "aws_lambda_permission" "eventbridge" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.schedule.arn
 }
+
+# -----------------------------------------------------------------------------
+# Health Check Lambda Function
+# -----------------------------------------------------------------------------
+data "archive_file" "health_check" {
+  type        = "zip"
+  source_file = "${path.module}/../lambda/health_check.py"
+  output_path = "${path.module}/health_check.zip"
+}
+
+resource "aws_lambda_function" "health_check" {
+  function_name = "nes-outage-health-check"
+  description   = "Health check endpoint for NES Outage API"
+
+  filename         = data.archive_file.health_check.output_path
+  source_code_hash = data.archive_file.health_check.output_base64sha256
+
+  runtime     = "python3.11"
+  handler     = "health_check.lambda_handler"
+  timeout     = 15
+  memory_size = 128
+
+  role = aws_iam_role.lambda.arn
+
+  tags = {
+    Project   = "nes-outage-status-checker"
+    ManagedBy = "terraform"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "health_check" {
+  name              = "/aws/lambda/${aws_lambda_function.health_check.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Project   = "nes-outage-status-checker"
+    ManagedBy = "terraform"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# API Gateway for Health Check
+# -----------------------------------------------------------------------------
+resource "aws_apigatewayv2_api" "health" {
+  name          = "nes-outage-health-api"
+  protocol_type = "HTTP"
+  description   = "Health check API for NES Outage Status Checker"
+
+  cors_configuration {
+    allow_origins = ["*"]
+    allow_methods = ["GET"]
+    allow_headers = ["*"]
+  }
+
+  tags = {
+    Project   = "nes-outage-status-checker"
+    ManagedBy = "terraform"
+  }
+}
+
+resource "aws_apigatewayv2_stage" "health" {
+  api_id      = aws_apigatewayv2_api.health.id
+  name        = "$default"
+  auto_deploy = true
+
+  tags = {
+    Project   = "nes-outage-status-checker"
+    ManagedBy = "terraform"
+  }
+}
+
+resource "aws_apigatewayv2_integration" "health" {
+  api_id                 = aws_apigatewayv2_api.health.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.health_check.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "health" {
+  api_id    = aws_apigatewayv2_api.health.id
+  route_key = "GET /health"
+  target    = "integrations/${aws_apigatewayv2_integration.health.id}"
+}
+
+resource "aws_lambda_permission" "api_gateway" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.health_check.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.health.execution_arn}/*/*"
+}

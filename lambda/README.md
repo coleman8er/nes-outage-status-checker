@@ -1,3 +1,51 @@
+# NES Outage Lambda Functions
+
+## Functions
+
+### 1. Data Archiver (`nes_archiver.py`)
+Fetches NES outage data every 10 minutes and saves it to S3.
+
+### 2. Health Check (`health_check.py`)
+API endpoint to validate the NES API is accessible and returning expected data.
+
+**Endpoint:** `GET /health`
+
+**Checks performed:**
+1. **API Reachability** - Can we connect to the NES API?
+2. **JSON Parseability** - Is the response valid JSON?
+3. **Status Field Validation** - Do events contain the 'status' field?
+
+**Response (200 OK):**
+```json
+{
+  "healthy": true,
+  "checks": {
+    "api_reachable": true,
+    "json_parseable": true,
+    "status_field_present": true
+  },
+  "errors": null,
+  "event_count": 42,
+  "sample_status_values": ["Assigned", "Unassigned"]
+}
+```
+
+**Response (503 Service Unavailable):**
+```json
+{
+  "healthy": false,
+  "checks": {
+    "api_reachable": true,
+    "json_parseable": true,
+    "status_field_present": false
+  },
+  "errors": ["Status field missing in 3/5 sampled events"],
+  "event_count": 42
+}
+```
+
+---
+
 # NES Outage Data Archiver
 
 AWS Lambda function that fetches NES outage data every 10 minutes and saves it to S3.

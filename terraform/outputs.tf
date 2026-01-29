@@ -27,3 +27,13 @@ output "log_group_name" {
   description = "CloudWatch Log Group for Lambda"
   value       = aws_cloudwatch_log_group.lambda.name
 }
+
+output "health_check_url" {
+  description = "Health check endpoint URL"
+  value       = "${aws_apigatewayv2_api.health.api_endpoint}/health"
+}
+
+output "health_check_function_name" {
+  description = "Health check Lambda function name"
+  value       = aws_lambda_function.health_check.function_name
+}
