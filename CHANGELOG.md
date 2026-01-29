@@ -2,6 +2,23 @@
 
 All notable changes to the NES Outage Status Checker will be documented in this file.
 
+## [1.3.0] - 2026-01-29
+
+### Added
+
+#### Web App - All Outages Page
+- **Map view** - Toggle between grid and map view to see all outages plotted geographically
+- **Color-coded markers** - Green for assigned, red for unassigned outages
+- **Marker size by impact** - Larger markers indicate more people affected
+- **Interactive popups** - Click markers to see outage details
+- **Legend** - Visual guide for status colors
+- **M keyboard shortcut** - Quick toggle between grid and map views
+
+### Changed
+- Moved all controls (refresh, notifications, sound) to top summary bar on both pages
+
+---
+
 ## [1.2.0] - 2026-01-28
 
 ### Added

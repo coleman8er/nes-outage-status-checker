@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Outages - NES Outage Status Checker</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <style>
         :root {
             --bg-primary: #1a1a2e;
@@ -372,6 +374,135 @@
             color: var(--text-muted);
             margin-top: 4px;
         }
+
+        #map {
+            height: 600px;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+        }
+
+        .map-container {
+            position: relative;
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            z-index: 1000;
+            font-size: 0.85rem;
+        }
+
+        .legend-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid;
+        }
+
+        .legend-dot.unassigned {
+            background: #ff6b6b;
+            border-color: #cc5555;
+        }
+
+        .legend-dot.assigned {
+            background: #2ed573;
+            border-color: #25aa5c;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-radius: 8px;
+        }
+
+        .leaflet-popup-tip {
+            background: var(--bg-secondary);
+        }
+
+        .leaflet-popup-content {
+            margin: 12px;
+        }
+
+        .popup-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .popup-field {
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+        }
+
+        .popup-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+
+        .popup-status.unassigned {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+        }
+
+        .popup-status.assigned {
+            background: rgba(46, 213, 115, 0.2);
+            color: #2ed573;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: var(--border-color);
+            border-radius: 6px;
+            padding: 2px;
+        }
+
+        .view-toggle button {
+            padding: 4px 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .view-toggle button.active {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .view-toggle button:hover:not(.active) {
+            color: var(--text-primary);
+        }
     </style>
 </head>
 <body>
@@ -393,6 +524,10 @@
                 <span class="summary-stat countdown" id="nextRefresh"></span>
             </div>
             <div class="summary-actions">
+                <div class="view-toggle">
+                    <button id="gridViewBtn" class="active" onclick="setView('grid')">Grid</button>
+                    <button id="mapViewBtn" onclick="setView('map')">Map</button>
+                </div>
                 <select id="filterAffected" onchange="fetchAllEvents()" title="Filter by minimum affected">
                     <option value="0">All</option>
                     <option value="2">2+ affected</option>
@@ -426,11 +561,26 @@
 
         <div class="events" id="events"></div>
 
+        <div class="map-container hidden" id="mapContainer">
+            <div id="map"></div>
+            <div class="map-legend">
+                <div class="legend-title">Status</div>
+                <div class="legend-item">
+                    <span class="legend-dot assigned"></span>
+                    <span>Assigned</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-dot unassigned"></span>
+                    <span>Unassigned</span>
+                </div>
+            </div>
+        </div>
+
         <footer>
             <a href="https://github.com/NeckBeardPrince/nes-outage-status-checker" target="_blank">GitHub</a>
             &middot;
             <a href="https://github.com/NeckBeardPrince/nes-outage-status-checker/blob/main/CHANGELOG.md" target="_blank">Changelog</a>
-            <div class="keyboard-hint">Keyboard: R=Refresh, N=Notifications, T=Theme</div>
+            <div class="keyboard-hint">Keyboard: R=Refresh, N=Notifications, T=Theme, M=Map</div>
             <div class="built-with">Built with Claude AI</div>
         </footer>
     </div>
@@ -457,6 +607,10 @@
         let colorblindMode = false;
         let previousEvents = {};
         let audioContext = null;
+        let currentView = 'grid';
+        let map = null;
+        let markers = [];
+        let currentEvents = [];
 
         function playNotificationSound() {
             if (!soundEnabled) return;
@@ -567,6 +721,9 @@
                     break;
                 case 't':
                     toggleTheme();
+                    break;
+                case 'm':
+                    setView(currentView === 'map' ? 'grid' : 'map');
                     break;
             }
         });
@@ -732,9 +889,17 @@
                     });
                 }
 
+                // Store events for map
+                currentEvents = events;
+
                 updateSummary(events);
                 eventsEl.innerHTML = events.map(createEventCard).join('');
                 loadingEl.classList.add('hidden');
+
+                // Update map if in map view
+                if (currentView === 'map' && map) {
+                    updateMapMarkers();
+                }
 
                 document.getElementById('lastChecked').textContent = `Last checked: ${new Date().toLocaleTimeString()}`;
 
@@ -829,8 +994,108 @@
             fetchAllEvents();
         }
 
+        // Map functions
+        function initMap() {
+            if (map) return;
+
+            // Center on Nashville
+            map = L.map('map').setView([36.1627, -86.7816], 10);
+
+            // Use a dark tile layer that matches our theme
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        function createMarkerIcon(isAssigned, numPeople) {
+            // Size based on affected people (min 20, max 40)
+            const size = Math.min(40, Math.max(20, 10 + Math.sqrt(numPeople) * 2));
+            const color = isAssigned ? '#2ed573' : '#ff6b6b';
+            const borderColor = isAssigned ? '#25aa5c' : '#cc5555';
+
+            return L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="
+                    width: ${size}px;
+                    height: ${size}px;
+                    background: ${color};
+                    border: 3px solid ${borderColor};
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #fff;
+                    font-size: ${size > 30 ? '10px' : '8px'};
+                    font-weight: 700;
+                ">${numPeople}</div>`,
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2],
+                popupAnchor: [0, -size/2]
+            });
+        }
+
+        function updateMapMarkers() {
+            // Clear existing markers
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            // Add new markers
+            currentEvents.forEach(event => {
+                // Check if event has coordinates
+                if (event.latitude && event.longitude) {
+                    const isAssigned = event.status !== 'Unassigned';
+                    const icon = createMarkerIcon(isAssigned, event.numPeople);
+
+                    const marker = L.marker([event.latitude, event.longitude], { icon })
+                        .addTo(map)
+                        .bindPopup(`
+                            <div class="popup-title">${event.title || 'Outage'}</div>
+                            <div class="popup-field"><strong>ID:</strong> ${event.id}</div>
+                            <div class="popup-field"><strong>Affected:</strong> ${event.numPeople} people</div>
+                            ${event.cause ? `<div class="popup-field"><strong>Cause:</strong> ${event.cause}</div>` : ''}
+                            <div class="popup-field"><strong>Started:</strong> ${formatDate(event.startTime)}</div>
+                            <div class="popup-field"><strong>Duration:</strong> ${formatDuration(event.startTime)}</div>
+                            <div class="popup-status ${isAssigned ? 'assigned' : 'unassigned'}">${event.status.toUpperCase()}</div>
+                        `);
+
+                    markers.push(marker);
+                }
+            });
+
+            // Fit bounds if we have markers
+            if (markers.length > 0) {
+                const group = L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+
+        function setView(view) {
+            currentView = view;
+
+            document.getElementById('gridViewBtn').classList.toggle('active', view === 'grid');
+            document.getElementById('mapViewBtn').classList.toggle('active', view === 'map');
+
+            document.getElementById('events').classList.toggle('hidden', view === 'map');
+            document.getElementById('mapContainer').classList.toggle('hidden', view === 'grid');
+
+            // Compact button only works in grid view
+            document.getElementById('compactBtn').classList.toggle('hidden', view === 'map');
+
+            if (view === 'map') {
+                initMap();
+                // Need to invalidate size after showing
+                setTimeout(() => {
+                    map.invalidateSize();
+                    updateMapMarkers();
+                }, 100);
+            }
+        }
+
         // Version check
-        const APP_VERSION = '1.2.0';
+        const APP_VERSION = '1.3.0';
 
         async function checkForUpdates() {
             try {
