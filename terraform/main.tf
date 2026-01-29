@@ -3,7 +3,7 @@ terraform {
 
   backend "s3" {
     bucket  = "astracen-terraform-state"
-    key     = "nes-outage-status-checker/terraform.tfstate"
+    key     = "state/nes-outage-status-checker/terraform.tfstate"
     region  = "us-east-2"
     profile = "personal"
   }
@@ -32,9 +32,9 @@ resource "aws_s3_bucket" "archive" {
   bucket = var.bucket_name
 
   tags = {
-    Name        = "NES Outage Archive"
-    Project     = "nes-outage-status-checker"
-    ManagedBy   = "terraform"
+    Name      = "NES Outage Archive"
+    Project   = "nes-outage-status-checker"
+    ManagedBy = "terraform"
   }
 }
 
@@ -150,9 +150,9 @@ resource "aws_lambda_function" "archiver" {
   filename         = data.archive_file.lambda.output_path
   source_code_hash = data.archive_file.lambda.output_base64sha256
 
-  runtime = "python3.11"
-  handler = "nes_archiver.lambda_handler"
-  timeout = 30
+  runtime     = "python3.11"
+  handler     = "nes_archiver.lambda_handler"
+  timeout     = 30
   memory_size = 128
 
   role = aws_iam_role.lambda.arn
