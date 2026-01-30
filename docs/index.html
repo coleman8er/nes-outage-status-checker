@@ -2286,12 +2286,19 @@
             return changes;
         }
 
-        function updateFreshnessDetail(changes, totalEvents) {
+        function updateFreshnessDetail(changes, totalEvents, isFirstLoad) {
             const el = document.getElementById('freshnessDetail');
             if (!el) return;
 
             // First load - no previous state to compare
-            if (changes.length === 0 && Object.keys(previousAllEventsState).length === totalEvents) {
+            if (isFirstLoad) {
+                el.textContent = `${totalEvents} events tracked`;
+                el.classList.remove('has-changes');
+                return;
+            }
+
+            // No changes detected
+            if (changes.length === 0) {
                 el.textContent = 'No changes';
                 el.classList.remove('has-changes');
                 return;
@@ -2356,10 +2363,11 @@
                 updateCrewsMap(events);
 
                 // Track state for change detection (used by monitor notifications)
+                const isFirstLoad = Object.keys(previousAllEventsState).length === 0;
                 const changes = detectActivityChanges(events);
 
                 // Update freshness indicator
-                updateFreshnessDetail(changes, events.length);
+                updateFreshnessDetail(changes, events.length, isFirstLoad);
                 document.getElementById('lastChecked').textContent = new Date().toLocaleTimeString();
 
             } catch (err) {
@@ -3144,8 +3152,9 @@
                 // Update dashboard stats and crews map
                 updateDashboardStats(events);
                 updateCrewsMap(events);
+                const isFirstLoad = Object.keys(previousAllEventsState).length === 0;
                 const changes = detectActivityChanges(events);
-                updateFreshnessDetail(changes, events.length);
+                updateFreshnessDetail(changes, events.length, isFirstLoad);
 
                 // Update monitored events
                 activeMonitors.forEach(([id, monitor]) => {

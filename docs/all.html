@@ -1958,10 +1958,20 @@
             document.getElementById('locationModal').classList.add('hidden');
         }
 
+        // Cache for reverse geocoding results
+        const geocodeCache = {};
+
         // Reverse geocode coordinates to human-readable address
         async function reverseGeocode(lat, lng) {
             const addressEl = document.getElementById('locationAddress');
             if (!addressEl) return;
+
+            // Check cache first (round to 4 decimal places ~11m precision)
+            const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+            if (geocodeCache[cacheKey]) {
+                addressEl.innerHTML = `<strong>Location:</strong> ${geocodeCache[cacheKey]}`;
+                return;
+            }
 
             try {
                 const response = await fetch(
@@ -1989,6 +1999,9 @@
                 else if (addr.village) parts.push(addr.village);
 
                 const location = parts.length > 0 ? parts.join(', ') : (data.display_name || 'Unknown area');
+
+                // Cache the result
+                geocodeCache[cacheKey] = location;
 
                 addressEl.innerHTML = `<strong>Location:</strong> ${location}`;
             } catch (e) {
