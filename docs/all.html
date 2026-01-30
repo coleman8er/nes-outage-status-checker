@@ -541,6 +541,46 @@
             margin-top: 4px;
         }
 
+        .nes-warning-banner {
+            background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+            color: white;
+            text-align: center;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            position: relative;
+            margin-bottom: 0;
+        }
+
+        .nes-warning-banner .subtext {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .nes-warning-banner .dismiss {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nes-warning-banner .dismiss:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
         .offline-banner {
             position: fixed;
             top: 0;
@@ -893,6 +933,12 @@
         <button class="dismiss" onclick="dismissDomainBanner()" title="Dismiss">&times;</button>
     </div>
 
+    <div class="nes-warning-banner" id="nesWarningBanner">
+        NES appears to have stopped updating outage status information. "Assigned/Unassigned" status may no longer be accurate.
+        <div class="subtext">Crew assignment data shown below may be outdated or incorrect.</div>
+        <button class="dismiss" onclick="dismissNesWarningBanner()" title="Dismiss">&times;</button>
+    </div>
+
     <div class="container">
         <header>
             <div class="header-brand">
@@ -920,6 +966,10 @@
                     <strong id="totalCount">0</strong>
                 </span>
                 <span class="summary-stat unassigned" style="opacity: 0.7;">
+                    <span class="summary-stat-label">Waiting for Crew</span>
+                    <strong id="unassignedCount">0</strong>
+                </span>
+                <span class="summary-stat" style="opacity: 0.85;">
                     <span class="summary-stat-label">Affected Customers</span>
                     <strong id="totalCustomersAffected">0</strong>
                 </span>
@@ -1233,12 +1283,15 @@
             // Use allEvents for overall stats (unfiltered by status dropdown)
             const eventsToCount = allEvents || events;
             const assignedEvents = eventsToCount.filter(e => e.status !== 'Unassigned');
+            const unassignedEvents = eventsToCount.filter(e => e.status === 'Unassigned');
 
             const assigned = assignedEvents.length;
+            const unassigned = unassignedEvents.length;
             const totalCustomersAffected = eventsToCount.reduce((sum, e) => sum + (e.numPeople || 0), 0);
             const assignedAffected = assignedEvents.reduce((sum, e) => sum + (e.numPeople || 0), 0);
 
             document.getElementById('totalCount').textContent = eventsToCount.length;
+            document.getElementById('unassignedCount').textContent = unassigned;
             document.getElementById('totalCustomersAffected').textContent = totalCustomersAffected.toLocaleString();
             document.getElementById('assignedCount').textContent = assigned;
             document.getElementById('assignedAffected').textContent = assignedAffected.toLocaleString();
@@ -1590,7 +1643,7 @@
         }
 
         // Version check
-        const APP_VERSION = '1.5.0';
+        const APP_VERSION = '1.6.0';
         const SEEN_VERSION_KEY = 'nes-outage-seen-version';
 
         function parseChangelog(markdown, version) {
@@ -1718,6 +1771,11 @@
             localStorage.setItem('nes-domain-banner-dismissed', 'true');
         }
 
+        function dismissNesWarningBanner() {
+            document.getElementById('nesWarningBanner').style.display = 'none';
+            localStorage.setItem('nes-warning-banner-dismissed', 'true');
+        }
+
         (function() {
             const isNewDomain = window.location.hostname === 'nes-outage-checker.com' ||
                                window.location.hostname === 'www.nes-outage-checker.com';
@@ -1725,6 +1783,12 @@
 
             if (isNewDomain || isDismissed) {
                 document.getElementById('domainBanner').style.display = 'none';
+            }
+
+            // Check if NES warning banner was dismissed
+            const isWarningDismissed = localStorage.getItem('nes-warning-banner-dismissed') === 'true';
+            if (isWarningDismissed) {
+                document.getElementById('nesWarningBanner').style.display = 'none';
             }
         })();
 
