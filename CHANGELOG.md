@@ -2,6 +2,20 @@
 
 All notable changes to the NES Outage Status Checker will be documented in this file.
 
+## [1.6.0] - 2026-01-30
+
+*Thank you to [nico22nguyen](https://github.com/nico22nguyen) for [PR #5](https://github.com/NeckBeardPrince/nes-outage-status-checker/pull/5)!*
+
+### Added
+
+#### Web App - All Outages Page
+- **Affected Customers count** - New stat showing total customers affected across all outages
+
+#### Web App - Both Pages
+- **NES transparency warning banner** - Dismissible banner alerting users that NES may have stopped updating crew assignment status
+
+---
+
 ## [1.5.0] - 2026-01-29
 
 *Thank you to [coleman8er](https://github.com/coleman8er) for [PR #3](https://github.com/NeckBeardPrince/nes-outage-status-checker/pull/3) and the new features below!*

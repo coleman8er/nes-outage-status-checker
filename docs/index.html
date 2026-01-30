@@ -828,6 +828,46 @@
             margin-top: 4px;
         }
 
+        .nes-warning-banner {
+            background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+            color: white;
+            text-align: center;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            position: relative;
+            margin-bottom: 0;
+        }
+
+        .nes-warning-banner .subtext {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .nes-warning-banner .dismiss {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nes-warning-banner .dismiss:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
         .offline-banner {
             position: fixed;
             top: 0;
@@ -1559,6 +1599,11 @@
         New home! This site is now available at <a href="https://nes-outage-checker.com">nes-outage-checker.com</a>
         <div class="subtext">Both URLs will always stay in sync - use whichever you prefer!</div>
         <button class="dismiss" onclick="dismissDomainBanner()" title="Dismiss">&times;</button>
+    </div>
+
+    <div class="nes-warning-banner" id="nesWarningBanner">
+        NES appears to have stopped updating outage status information. "Assigned/Unassigned" status may no longer be accurate.
+        <div class="subtext">Crew assignment data shown below may be outdated or incorrect.</div>
     </div>
 
     <div class="container">
@@ -3115,7 +3160,7 @@
         }
 
         // Version check
-        const APP_VERSION = '1.5.0';
+        const APP_VERSION = '1.6.0';
         const SEEN_VERSION_KEY = 'nes-outage-seen-version';
 
         function parseChangelog(markdown, version) {
