@@ -1406,7 +1406,23 @@
             color: var(--text-muted);
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 8px;
+        }
+
+        .map-ctrl-btn {
+            padding: 4px 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-family: var(--font-body);
+            transition: all 0.2s;
+        }
+        .map-ctrl-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
         }
 
         .crews-map-toggle-icon {
@@ -1426,6 +1442,36 @@
 
         .crews-map-section.collapsed .crews-map-body {
             height: 0;
+        }
+
+        .crews-map-section:fullscreen {
+            background: var(--bg-primary);
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            border-radius: 0;
+        }
+        .crews-map-section:fullscreen .crews-map-header {
+            flex-shrink: 0;
+            border-radius: 0;
+        }
+        .crews-map-section:fullscreen .crews-map-body {
+            flex: 1;
+            height: auto;
+            transition: none;
+        }
+        .crews-map-section:fullscreen #crewsMap {
+            height: 100%;
+        }
+
+        @media (max-width: 600px) {
+            .map-ctrl-btn .btn-text { display: none; }
+            .map-ctrl-btn .btn-icon { display: inline; }
+            .map-ctrl-btn { padding: 4px 6px; }
+        }
+        @media (min-width: 601px) {
+            .map-ctrl-btn .btn-icon { display: none; }
         }
 
         #crewsMap {
@@ -1624,6 +1670,9 @@
                     Where Crews Are Working
                 </div>
                 <div class="crews-map-toggle">
+                    <!-- stopPropagation prevents click from toggling the collapsible map section -->
+                    <button class="map-ctrl-btn" id="mapStyleBtn" onclick="event.stopPropagation(); cycleMapStyle()" title="Cycle map style (S)"><span class="btn-icon">&#x25D0;</span><span class="btn-text">Aerial</span></button>
+                    <button class="map-ctrl-btn" id="fullscreenBtn" onclick="event.stopPropagation(); toggleMapFullscreen()" title="Toggle fullscreen (F)"><span class="btn-icon">&#x2922;</span><span class="btn-text">Fullscreen</span></button>
                     <span id="crewsMapCount">0 crews</span>
                     <span class="crews-map-toggle-icon">&#9660;</span>
                 </div>
@@ -1647,7 +1696,7 @@
             <a href="https://github.com/NeckBeardPrince/nes-outage-status-checker" target="_blank">GitHub</a>
             &middot;
             <a href="https://github.com/NeckBeardPrince/nes-outage-status-checker/blob/main/CHANGELOG.md" target="_blank">Changelog</a>
-            <div class="keyboard-hint">Keyboard: R=Refresh, N=Notifications, T=Theme, C=Copy URL</div>
+            <div class="keyboard-hint">Keyboard: R=Refresh, N=Notify, T=Theme, C=Copy, S=Map Style, F=Fullscreen</div>
             <div class="built-with">
                 Built by <a href="https://iamadam.dev/" target="_blank" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none; font-weight: 700;">Adam</a>
                 <span style="margin: 0 6px; color: #666;">+</span>
@@ -1740,6 +1789,15 @@
         const CREWS_MAP_KEY = 'nes-crews-map-collapsed';
         let crewsMap = null;
         let crewsMapMarkers = [];
+        let mapStyle = 'dark';
+        let currentTileLayer = null;
+        // Map tile providers: CartoDB for dark/light themes, ESRI for aerial/satellite
+        // subdomains 'abcd' enables parallel tile loading from CDN (not used by ESRI)
+        const tileLayers = {
+            dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd' },
+            light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd' },
+            aerial: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', subdomains: null }
+        };
 
         // Dashboard stats
         let systemStats = {
@@ -1961,6 +2019,49 @@
             }
         }
 
+        function setMapStyle(style) {
+            // Swap tile layer - Leaflet requires removing old layer before adding new
+            if (currentTileLayer && crewsMap) crewsMap.removeLayer(currentTileLayer);
+            const t = tileLayers[style];
+            const opts = { maxZoom: 19 };
+            if (t.subdomains) opts.subdomains = t.subdomains;
+            currentTileLayer = L.tileLayer(t.url, opts);
+            if (crewsMap) currentTileLayer.addTo(crewsMap);
+        }
+
+        function cycleMapStyle() {
+            const styles = ['dark', 'light', 'aerial'];
+            mapStyle = styles[(styles.indexOf(mapStyle) + 1) % styles.length];
+            setMapStyle(mapStyle);
+            // Button shows the NEXT style (what you'll get on click), not current style
+            const nextStyle = styles[(styles.indexOf(mapStyle) + 1) % styles.length];
+            const btn = document.getElementById('mapStyleBtn');
+            if (btn) {
+                const textEl = btn.querySelector('.btn-text');
+                if (textEl) textEl.textContent = nextStyle.charAt(0).toUpperCase() + nextStyle.slice(1);
+            }
+            localStorage.setItem('nes-map-style', mapStyle);
+        }
+
+        function toggleMapFullscreen() {
+            const section = document.getElementById('crewsMapSection');
+            if (!document.fullscreenElement) {
+                section.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('fullscreenBtn');
+            if (btn) {
+                const textEl = btn.querySelector('.btn-text');
+                if (textEl) textEl.textContent = document.fullscreenElement ? 'Exit' : 'Fullscreen';
+            }
+            // Leaflet requires invalidateSize() after container resize to recalculate dimensions
+            if (crewsMap) setTimeout(() => crewsMap.invalidateSize(), 100);
+        });
+
         function loadCrewsMapState() {
             crewsMapCollapsed = localStorage.getItem(CREWS_MAP_KEY) === 'true';
             const section = document.getElementById('crewsMapSection');
@@ -1989,17 +2090,26 @@
             }
 
             try {
-                // Nashville center coordinates
+                // Load saved map style
+                const savedStyle = localStorage.getItem('nes-map-style');
+                if (savedStyle && tileLayers[savedStyle]) {
+                    mapStyle = savedStyle;
+                    // Button shows the NEXT style (what you'll get on click), not current style
+                    const styles = ['dark', 'light', 'aerial'];
+                    const nextStyle = styles[(styles.indexOf(mapStyle) + 1) % styles.length];
+                    const btn = document.getElementById('mapStyleBtn');
+                    if (btn) {
+                        const textEl = btn.querySelector('.btn-text');
+                        if (textEl) textEl.textContent = nextStyle.charAt(0).toUpperCase() + nextStyle.slice(1);
+                    }
+                }
+
                 crewsMap = L.map('crewsMap', {
                     zoomControl: true,
                     attributionControl: false
                 }).setView([36.1627, -86.7816], 10);
 
-                // Use appropriate tiles for current theme
-                const tileUrl = lightMode
-                    ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-                    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-                L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(crewsMap);
+                setMapStyle(mapStyle);
             } catch (error) {
                 console.error('Failed to initialize crews map:', error);
                 crewsMap = null;
@@ -2217,18 +2327,12 @@
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT') return;
             switch(e.key.toLowerCase()) {
-                case 'r':
-                    refreshAllMonitors();
-                    break;
-                case 'n':
-                    toggleNotifications();
-                    break;
-                case 't':
-                    toggleTheme();
-                    break;
-                case 'c':
-                    copyURL();
-                    break;
+                case 'r': refreshAllMonitors(); break;
+                case 'n': toggleNotifications(); break;
+                case 't': toggleTheme(); break;
+                case 'c': copyURL(); break;
+                case 's': cycleMapStyle(); break;
+                case 'f': toggleMapFullscreen(); break;
             }
         });
 

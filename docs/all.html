@@ -754,8 +754,9 @@
 
         #map {
             height: 600px;
-            border-radius: 16px;
+            border-radius: 0 0 12px 12px;
             border: 1px solid var(--border-color);
+            border-top: none;
             box-shadow: var(--shadow-md);
         }
 
@@ -924,6 +925,81 @@
         .summary-stat.unassigned strong {
             color: var(--status-waiting);
         }
+
+        /* Map header */
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+        }
+        .map-header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+        }
+        .map-header-pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--status-active);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        .map-header-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .map-ctrl-btn {
+            padding: 4px 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-family: var(--font-body);
+            transition: all 0.2s;
+        }
+        .map-ctrl-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        /* Fullscreen map */
+        .map-container:fullscreen {
+            background: var(--bg-primary);
+            padding: 0;
+        }
+        .map-container:fullscreen #map {
+            height: calc(100vh - 50px);
+            border-radius: 0;
+        }
+        .map-container:fullscreen .map-header {
+            border-radius: 0;
+        }
+
+        @media (max-width: 600px) {
+            .map-ctrl-btn .btn-text { display: none; }
+            .map-ctrl-btn .btn-icon { display: inline; }
+            .map-ctrl-btn { padding: 4px 6px; }
+        }
+        @media (min-width: 601px) {
+            .map-ctrl-btn .btn-icon { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -1027,6 +1103,17 @@
         <div class="events" id="events"></div>
 
         <div class="map-container hidden" id="mapContainer">
+            <div class="map-header">
+                <div class="map-header-title">
+                    <span class="map-header-pulse"></span>
+                    Where Crews Are Working
+                </div>
+                <div class="map-header-controls">
+                    <button class="map-ctrl-btn" id="mapStyleBtn" onclick="cycleMapStyle()" title="Cycle map style (S)"><span class="btn-icon">&#x25D0;</span><span class="btn-text">Aerial</span></button>
+                    <button class="map-ctrl-btn" id="fullscreenBtn" onclick="toggleMapFullscreen()" title="Toggle fullscreen (F)"><span class="btn-icon">&#x2922;</span><span class="btn-text">Fullscreen</span></button>
+                    <span id="crewsCount">0 crews</span>
+                </div>
+            </div>
             <div id="map"></div>
             <div class="map-legend">
                 <div class="legend-title">Active Crews</div>
@@ -1049,7 +1136,7 @@
             <a href="https://github.com/NeckBeardPrince/nes-outage-status-checker" target="_blank">GitHub</a>
             &middot;
             <a href="https://github.com/NeckBeardPrince/nes-outage-status-checker/blob/main/CHANGELOG.md" target="_blank">Changelog</a>
-            <div class="keyboard-hint">Keyboard: R=Refresh, N=Notifications, T=Theme, M=Map</div>
+            <div class="keyboard-hint">Keyboard: R=Refresh, N=Notify, T=Theme, M=Map, S=Style, F=Fullscreen</div>
             <div class="built-with">
                 Built by <a href="https://iamadam.dev/" target="_blank" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none; font-weight: 700;">Adam</a>
                 <span style="margin: 0 6px; color: #666;">+</span>
@@ -1104,6 +1191,15 @@
         let currentEvents = [];
         let allEventsForMap = []; // Store all events (unfiltered) for map
         let showWaitingOnMap = false;
+        let mapStyle = 'dark';
+        let currentTileLayer = null;
+        // Map tile providers: CartoDB for dark/light themes, ESRI for aerial/satellite
+        // subdomains 'abcd' enables parallel tile loading from CDN (not used by ESRI)
+        const tileLayers = {
+            dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd' },
+            light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', subdomains: 'abcd' },
+            aerial: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', subdomains: null }
+        };
 
         function playNotificationSound() {
             if (!soundEnabled) return;
@@ -1134,6 +1230,7 @@
                 lightMode,
                 colorblindMode
             }));
+            localStorage.setItem('nes-map-style', mapStyle);
         }
 
         function loadSettings() {
@@ -1146,8 +1243,10 @@
                     soundEnabled = settings.soundEnabled || false;
                     lightMode = settings.lightMode || false;
                     colorblindMode = settings.colorblindMode || false;
-                    updateSettingsUI();
                 }
+                const savedMapStyle = localStorage.getItem('nes-map-style');
+                if (savedMapStyle && tileLayers[savedMapStyle]) mapStyle = savedMapStyle;
+                updateSettingsUI();
             } catch {}
         }
 
@@ -1160,6 +1259,13 @@
             document.getElementById('colorblindBtn').classList.toggle('active', colorblindMode);
             document.body.classList.toggle('light-mode', lightMode);
             document.body.classList.toggle('colorblind-mode', colorblindMode);
+            const styles = ['dark', 'light', 'aerial'];
+            const nextStyle = styles[(styles.indexOf(mapStyle) + 1) % styles.length];
+            const mapStyleBtn = document.getElementById('mapStyleBtn');
+            if (mapStyleBtn) {
+                const textEl = mapStyleBtn.querySelector('.btn-text');
+                if (textEl) textEl.textContent = nextStyle.charAt(0).toUpperCase() + nextStyle.slice(1);
+            }
         }
 
         // Theme and accessibility toggles
@@ -1177,6 +1283,49 @@
             document.getElementById('colorblindBtn').classList.toggle('active', colorblindMode);
             saveSettings();
         }
+
+        function setMapStyle(style) {
+            // Swap tile layer - Leaflet requires removing old layer before adding new
+            if (currentTileLayer && map) map.removeLayer(currentTileLayer);
+            const t = tileLayers[style];
+            const opts = { maxZoom: 19 };
+            if (t.subdomains) opts.subdomains = t.subdomains;
+            currentTileLayer = L.tileLayer(t.url, opts);
+            if (map) currentTileLayer.addTo(map);
+        }
+
+        function cycleMapStyle() {
+            const styles = ['dark', 'light', 'aerial'];
+            mapStyle = styles[(styles.indexOf(mapStyle) + 1) % styles.length];
+            setMapStyle(mapStyle);
+            // Button shows the NEXT style (what you'll get on click), not current style
+            const nextStyle = styles[(styles.indexOf(mapStyle) + 1) % styles.length];
+            const btn = document.getElementById('mapStyleBtn');
+            if (btn) {
+                const textEl = btn.querySelector('.btn-text');
+                if (textEl) textEl.textContent = nextStyle.charAt(0).toUpperCase() + nextStyle.slice(1);
+            }
+            saveSettings();
+        }
+
+        function toggleMapFullscreen() {
+            const container = document.getElementById('mapContainer');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('fullscreenBtn');
+            if (btn) {
+                const textEl = btn.querySelector('.btn-text');
+                if (textEl) textEl.textContent = document.fullscreenElement ? 'Exit' : 'Fullscreen';
+            }
+            // Leaflet requires invalidateSize() after container resize to recalculate dimensions
+            if (map) setTimeout(() => map.invalidateSize(), 100);
+        });
 
         // Countdown timer
         function updateCountdown() {
@@ -1206,18 +1355,12 @@
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
             switch(e.key.toLowerCase()) {
-                case 'r':
-                    fetchAllEvents();
-                    break;
-                case 'n':
-                    toggleNotifications();
-                    break;
-                case 't':
-                    toggleTheme();
-                    break;
-                case 'm':
-                    setView(currentView === 'map' ? 'grid' : 'map');
-                    break;
+                case 'r': fetchAllEvents(); break;
+                case 'n': toggleNotifications(); break;
+                case 't': toggleTheme(); break;
+                case 'm': setView(currentView === 'map' ? 'grid' : 'map'); break;
+                case 's': cycleMapStyle(); break;
+                case 'f': if (currentView === 'map') toggleMapFullscreen(); break;
             }
         });
 
@@ -1518,16 +1661,8 @@
         // Map functions
         function initMap() {
             if (map) return;
-
-            // Center on Nashville
             map = L.map('map').setView([36.1627, -86.7816], 10);
-
-            // Use a dark tile layer that matches our theme
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(map);
+            setMapStyle(mapStyle);
         }
 
         function createMarkerIcon(isAssigned, numPeople) {
@@ -1604,6 +1739,13 @@
                     markers.push(marker);
                 }
             });
+
+            // Update crews count
+            const assignedCount = eventsToShow.filter(e => e.status !== 'Unassigned').length;
+            const crewsCountEl = document.getElementById('crewsCount');
+            if (crewsCountEl) {
+                crewsCountEl.textContent = `${assignedCount} crew${assignedCount !== 1 ? 's' : ''}`;
+            }
 
             // Fit bounds if we have markers
             if (markers.length > 0) {
