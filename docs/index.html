@@ -1573,7 +1573,7 @@
         </div>
 
         <div class="crews-map-section" id="crewsMapSection">
-            <div class="crews-map-header" onclick="toggleCrewsMap()">
+            <div class="crews-map-header" role="button" tabindex="0" aria-expanded="false" onclick="toggleCrewsMap()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleCrewsMap(); }">
                 <div class="crews-map-title">
                     <span class="crews-map-pulse"></span>
                     Where Crews Are Working
@@ -1900,9 +1900,15 @@
         // Activity Feed Functions
         function toggleCrewsMap() {
             const section = document.getElementById('crewsMapSection');
+            const header = section.querySelector('.crews-map-header');
             crewsMapCollapsed = !crewsMapCollapsed;
             section.classList.toggle('collapsed', crewsMapCollapsed);
             localStorage.setItem(CREWS_MAP_KEY, crewsMapCollapsed);
+
+            // Update aria-expanded for accessibility
+            if (header) {
+                header.setAttribute('aria-expanded', !crewsMapCollapsed);
+            }
 
             // Invalidate map size when expanding (Leaflet needs this)
             if (!crewsMapCollapsed && crewsMap) {
@@ -1913,23 +1919,49 @@
         function loadCrewsMapState() {
             crewsMapCollapsed = localStorage.getItem(CREWS_MAP_KEY) === 'true';
             const section = document.getElementById('crewsMapSection');
-            if (section && crewsMapCollapsed) {
-                section.classList.add('collapsed');
+            if (section) {
+                if (crewsMapCollapsed) {
+                    section.classList.add('collapsed');
+                }
+                // Set initial aria-expanded state
+                const header = section.querySelector('.crews-map-header');
+                if (header) {
+                    header.setAttribute('aria-expanded', !crewsMapCollapsed);
+                }
             }
         }
 
         function initCrewsMap() {
-            // Nashville center coordinates
-            crewsMap = L.map('crewsMap', {
-                zoomControl: true,
-                attributionControl: false
-            }).setView([36.1627, -86.7816], 10);
+            const crewsMapSection = document.getElementById('crewsMapSection');
+            const crewsMapElement = document.getElementById('crewsMap');
 
-            // Use appropriate tiles for current theme
-            const tileUrl = lightMode
-                ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-                : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-            L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(crewsMap);
+            // Ensure Leaflet and the map container exist before initializing
+            if (!crewsMapElement || typeof L === 'undefined' || typeof L.map !== 'function') {
+                if (crewsMapSection) {
+                    crewsMapSection.style.display = 'none';
+                }
+                return;
+            }
+
+            try {
+                // Nashville center coordinates
+                crewsMap = L.map('crewsMap', {
+                    zoomControl: true,
+                    attributionControl: false
+                }).setView([36.1627, -86.7816], 10);
+
+                // Use appropriate tiles for current theme
+                const tileUrl = lightMode
+                    ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+                    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+                L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(crewsMap);
+            } catch (error) {
+                console.error('Failed to initialize crews map:', error);
+                crewsMap = null;
+                if (crewsMapSection) {
+                    crewsMapSection.style.display = 'none';
+                }
+            }
         }
 
         function updateCrewsMap(events) {
@@ -2370,7 +2402,19 @@
             return distance * customerWeight;
         }
 
+        // Rate limiting for Nominatim API (max 1 request per second per their policy)
+        const GEOCODE_MIN_INTERVAL_MS = 1000;
+        let lastGeocodeTime = 0;
+
         async function geocodeAddress(address) {
+            // Enforce rate limiting
+            const now = Date.now();
+            const elapsed = now - lastGeocodeTime;
+            if (elapsed < GEOCODE_MIN_INTERVAL_MS) {
+                await new Promise(resolve => setTimeout(resolve, GEOCODE_MIN_INTERVAL_MS - elapsed));
+            }
+            lastGeocodeTime = Date.now();
+
             const encodedAddress = encodeURIComponent(address);
             const url = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&limit=1`;
 
